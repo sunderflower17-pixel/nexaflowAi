@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dandiya Night — Pass Scanner</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#d7ad56">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{font-family:system-ui,-apple-system,sans-serif;color-scheme:dark}
@@ -20,6 +24,8 @@ small{color:#ccc;line-height:1.5}.hidden{display:none}
 <body>
 <h1>🎟️ Dandiya Night Pass Scanner</h1>
 <div class="panel">
+  <button id="install" class="hidden">📲 Install app</button>
+<small id="iosHint" class="hidden">On iPhone: tap the Share button, then "Add to Home Screen".</small>
   <button id="start">Start camera scanner</button>
   <button id="stop" class="hidden">Stop scanner</button>
   <div id="reader"></div>
@@ -31,7 +37,7 @@ small{color:#ccc;line-height:1.5}.hidden{display:none}
 </div>
 <script>
 // ====== FILL THESE IN (Supabase > Project Settings > API) ======
-const SUPABASE_URL = "https://fihkqayvtapbgtkvjfzh.supabase.co/";
+const SUPABASE_URL = "https://fihkqayvtapbgtkvjfzh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpaGtxYXl2dGFwYmd0a3ZqZnpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTExODgsImV4cCI6MjA5MzU2NzE4OH0.LKH6Nib-GHIzg_t08iSMg0v17K7j5e7-zXoJFzTniow";
 // ================================================================
 
@@ -97,6 +103,21 @@ $("stop").onclick = async () => {
   result("neutral", "Scanner stopped.");
 };
 updateCount();
+  // ---- Install app support ----
+let deferredPrompt = null;
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault(); deferredPrompt = e; $("install").classList.remove("hidden");
+});
+$("install").onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt(); await deferredPrompt.userChoice;
+  deferredPrompt = null; $("install").classList.add("hidden");
+};
+window.addEventListener("appinstalled", () => $("install").classList.add("hidden"));
+const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+if (isiOS && !isStandalone) $("iosHint").classList.remove("hidden");
 setInterval(updateCount, 15000);
 </script>
 </body>
