@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dandiya Night — Local Pass Scanner</title>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;padding:18px;background:#111;color:#fff;max-width:600px;margin-inline:auto}
+h1{font-size:1.4rem} .panel{background:#222;border-radius:16px;padding:16px;margin:12px 0}
+button{width:100%;padding:14px;margin:6px 0;border:0;border-radius:10px;background:#d7ad56;color:#111;font-size:1rem;font-weight:700}
+#reader{background:#fff;border-radius:12px;overflow:hidden;color:#111}
+#result{padding:20px;border-radius:12px;margin-top:12px;text-align:center;font-weight:800;overflow-wrap:anywhere}
+.valid{background:#14532d}.bad{background:#7f1d1d}.neutral{background:#333}
+small{color:#ccc;line-height:1.5}.hidden{display:none}
+</style>
+</head>
+<body>
+<h1>🎟️ Dandiya Night Pass Scanner</h1>
+<div class="panel">
+  <p>Local scanner · No Supabase · Up to 25 passes</p>
+  <small>Use this scanner on ONE designated phone/browser. Scan status is saved only on this device in this browser. Internet is needed to load the camera-scanning library unless you download and host it locally.</small>
+</div>
+<div class="panel">
+  <button id="start">Start camera scanner</button>
+  <button id="stop" class="hidden">Stop scanner</button>
+  <div id="reader"></div>
+  <div id="result" class="neutral">Ready to scan a pass.</div>
+</div>
+<div class="panel">
+  <p><strong>Attendance</strong></p>
+  <p id="count">0 of 25 passes used</p>
+  <button id="showUsed">Show used pass numbers</button>
+  <div id="usedList"></div>
+  <small>Do not clear browser data or use private/incognito mode before the event. That can erase the local check-in record.</small>
+</div>
+<script>
+const VALID_CODES = [
+    "DN-EDPFF6PQU7",
+    "DN-YHSQ2NRVBH",
+    "DN-VW44CG7NV3",
+    "DN-WJX2QFGSY2",
+    "DN-RBJQXUTPNC",
+    "DN-HDVHWXVSHA",
+    "DN-7XQ859T83Y",
+    "DN-HW9C2B9SHG",
+    "DN-ALM7VZC58F",
+    "DN-4L6JTPZVHC",
+    "DN-VZ6AV2MMBH",
+    "DN-UXZ45SEVV9",
+    "DN-GV55LBP7NN",
+    "DN-MUHK3HY8M7",
+    "DN-GL2AR4JT4P",
+    "DN-FBADGEA3VU",
+    "DN-U7HEK5LV59",
+    "DN-3XCX7MW39V",
+    "DN-J99LAPV4UE",
+    "DN-AUNYZLA5C7",
+    "DN-53VWLXLEMF",
+    "DN-W2DPBTCLSB",
+    "DN-Z26WRDQLH4",
+    "DN-PJZVBCBZTR",
+    "DN-KYR4BF9EEV"
+];
+const STORAGE_KEY = "dandiya_night_used_codes_v1";
+let scanner = null, busy = false, lastText = "", lastAt = 0;
+const $ = id => document.getElementById(id);
+function loadUsed(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]")}catch{return []}}
+function saveUsed(list){localStorage.setItem(STORAGE_KEY,JSON.stringify(list));updateCount()}
+function updateCount(){const used=loadUsed();$("count").textContent=`${used.length} of ${VALID_CODES.length} passes used`}
+function result(cls,title,detail=""){$("result").className=cls;$("result").textContent=detail?`${title} — ${detail}`:title}
+async function checkCode(raw){
+ const code=raw.trim().toUpperCase();
+ if(!VALID_CODES.includes(code)){result("bad","✕ INVALID PASS","Code not on the approved list");return}
+ const used=loadUsed();
+ if(used.includes(code)){result("bad","✕ ALREADY USED",code);return}
+ used.push(code);saveUsed(used);
+ result("valid","✓ VALID — ENTRY ACCEPTED",code);
+}
+$("start").onclick=async()=>{
+ if(scanner)return;
+ if(typeof Html5Qrcode==="undefined"){result("bad","SCANNER LIBRARY NOT LOADED","Connect to the internet and reload this page.");return}
+ scanner=new Html5Qrcode("reader");$("start").classList.add("hidden");$("stop").classList.remove("hidden");
+ result("neutral","Starting camera…");
+ try{
+  await scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:240,height:240}},async decoded=>{
+   const now=Date.now();if(busy||(decoded===lastText&&now-lastAt<2500))return;
+   busy=true;lastText=decoded;lastAt=now;
+   try{await checkCode(decoded)}finally{setTimeout(()=>busy=false,1400)}
+  },()=>{});
+  result("neutral","Ready to scan a pass.");
+ }catch(e){result("bad","CAMERA ERROR","Allow camera permission and open this page over HTTPS.");scanner=null;$("start").classList.remove("hidden");$("stop").classList.add("hidden")}
+};
+$("stop").onclick=async()=>{if(scanner){try{await scanner.stop()}catch{}scanner=null}$("start").classList.remove("hidden");$("stop").classList.add("hidden");result("neutral","Scanner stopped.")};
+$("showUsed").onclick=()=>{const used=loadUsed();$("usedList").textContent=used.length?used.map(c=>`${VALID_CODES.indexOf(c)+1}. ${c}`).join("\n"):"No passes scanned yet";$("usedList").style.whiteSpace="pre-line"};
+updateCount();
+</script>
+</body>
+</html>
