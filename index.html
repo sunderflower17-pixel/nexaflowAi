@@ -71,13 +71,20 @@ function loadUsed(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]
 function saveUsed(list){localStorage.setItem(STORAGE_KEY,JSON.stringify(list));updateCount()}
 function updateCount(){const used=loadUsed();$("count").textContent=`${used.length} of ${VALID_CODES.length} passes used`}
 function result(cls,title,detail=""){$("result").className=cls;$("result").textContent=detail?`${title} — ${detail}`:title}
-async function checkCode(raw){
- const code=raw.trim().toUpperCase();
- if(!VALID_CODES.includes(code)){result("bad","✕ INVALID PASS","Code not on the approved list");return}
- const used=loadUsed();
- if(used.includes(code)){result("bad","✕ ALREADY USED",code);return}
- used.push(code);saveUsed(used);
- result("valid","✓ VALID — ENTRY ACCEPTED",code);
+async function checkCode(raw) {
+  const code = raw.trim().toUpperCase();
+  result('neutral', 'Checking…');
+
+  const res = await fetch('/.netlify/functions/check-pass', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  });
+  const { status } = await res.json();
+
+  if (status === 'invalid') { result('bad', '✕ INVALID PASS', 'Code not on the approved list'); return; }
+  if (status === 'used')    { result('bad', '✕ ALREADY USED', code); return; }
+  result('valid', '✓ VALID — ENTRY ACCEPTED', code);
 }
 $("start").onclick=async()=>{
  if(scanner)return;
