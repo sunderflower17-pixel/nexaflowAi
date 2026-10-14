@@ -54,7 +54,7 @@ async function rpc(fn, args = {}) {
     },
     body: JSON.stringify(args)
   });
-  if (!r.ok) throw new Error("HTTP " + r.status);
+  if (!r.ok) throw new Error("HTTP " + r.status + " " + (await r.text()));
   return r.json();
 }
 function result(cls, title, detail = "") {
@@ -62,8 +62,12 @@ function result(cls, title, detail = "") {
   $("result").textContent = detail ? `${title} — ${detail}` : title;
 }
 async function updateCount() {
-  try { const s = await rpc("pass_stats"); $("count").textContent = `${s.used} of ${s.total} passes used`; }
-  catch { $("count").textContent = "Offline — count unavailable"; }
+  try {
+    const s = await rpc("pass_stats");
+    $("count").textContent = `${s.used} of ${s.total} passes used`;
+  } catch (e) {
+    $("count").textContent = "Error: " + String(e.message).slice(0, 150);
+  }
 }
 async function checkCode(raw) {
   result("neutral", "Checking…");
@@ -75,8 +79,8 @@ async function checkCode(raw) {
       result("bad", "✕ ALREADY USED", `${r.code}${t ? " at " + t : ""}`);
     } else result("bad", "✕ INVALID PASS", "Code not recognised");
     updateCount();
-  } catch {
-    result("warn", "⚠ NETWORK ERROR", "NOT recorded — check signal and scan again");
+  } catch (e) {
+    result("warn", "⚠ ERROR", String(e.message).slice(0, 200));
   }
 }
 $("start").onclick = async () => {
